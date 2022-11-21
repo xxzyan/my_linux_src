@@ -68,7 +68,7 @@
 			regulator-name = "VSD_3V3";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+			/* gpio = <&gpio1 9 GPIO_ACTIVE_HIGH>;*/
 			enable-active-high;
 		};
 
@@ -82,6 +82,13 @@
 			regulator-type = "voltage";
 			gpios = <&gpio5 3 GPIO_ACTIVE_HIGH>;
 			states = <1300000 0x1 1400000 0x0>;
+		};
+		reg_vref_adc: regulator@2 {
+			compatible = "regulator-fixed";
+			regulator-name = "VREF_3V3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+
 		};
 	};
 
@@ -101,8 +108,8 @@
 		 * hp-det-polarity = 1: hp detect high for speaker
 		 */
 		hp-det = <3 0>;
-		hp-det-gpios = <&gpio5 4 0>;
-		mic-det-gpios = <&gpio5 4 0>;
+		/*hp-det-gpios = <&gpio5 4 0>;
+		mic-det-gpios = <&gpio5 4 0>;*/
 		audio-routing =
 			"Headphone Jack", "HP_L",
 			"Headphone Jack", "HP_R",
@@ -150,6 +157,78 @@
 			registers-default = /bits/ 8 <0x57>;
 			spi-max-frequency = <100000>;
 		};
+	};
+
+	/* 这是我新添加的 LED 节点信息  2022/11/10*/
+	myled {
+		compatible = "ALIENTEK,myled";
+		#address-cells = <1>; 
+		#size-cells =<1>;
+		status = "okay";
+		reg = < 0x020C406C 0x04		/* CCM_CCGR1_BASE */
+				0x020E0068 0X04		/* IOMUXC_SW_MUX_CTL_GPIO1_IO03 */
+				0x020E02F4 0X04		/* IOMUXC_SW_PAD_CTL_GPIO1_IO03 */
+				0x0209C004 0X04		/* GPIO1_GDIR */
+				0x0209C000 0x04 >; 	/* GPIO1_DR */
+	};
+	/*
+	gpioled {
+		compatible = "ALIENTEK,gpioled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpioled>;
+		status = "okay";
+		led-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+	};
+	*/
+
+	beep {
+		compatible = "ALIENTEK, beep";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_beep>;
+		status = "okay";
+		beep-gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
+	};
+	/* xxzy key */
+	// key {
+	// 	#address-cells = <1>;
+	// 	#size-cells = <1>;
+	// 	compatible = "ALIENTEK, key";
+	// 	pinctrl-names = "default";
+	// 	pinctrl-0 = <&pinctrl_key>;
+	// 	key-gpio = <&gpio1 18 GPIO_ACTIVE_LOW>;/* KEY0 */
+	// 	interrupt-parent = <&gpio1>;
+	// 	interrupts = <18 IRQ_TYPE_EDGE_BOTH>; /* 边沿触发(上升沿与下降沿都触发) */
+	// 	status = "okay";
+	// };
+	/* xxzy 使用系统自带的按键驱动  */
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		autorepeat;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_key>;
+
+		status = "okay";
+		key0 {
+			label = "GPIO KEY Enter";
+			linux,code = <KEY_ENTER>;
+			gpios = <&gpio1 18 GPIO_ACTIVE_LOW>;
+		};
+	};
+	/* 使用系统自带的led驱动*/
+	
+	dtsleds {
+		compatible = "gpio-leds";
+		led0{
+			label = "red";
+			pinctrl-names = "default";
+			inctrl-0 = <&pinctrl_gpioled>;
+			gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+			default-state = "on";
+		};
+
 	};
 };
 
@@ -241,19 +320,25 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
+	ap3216c@1e {
+		compatible = "dn,ap3216c";
+		reg = <0x1e>;
+	};
+
+	/* 没有这些设备，
 	mag3110@0e {
 		compatible = "fsl,mag3110";
 		reg = <0x0e>;
 		position = <2>;
 	};
-
+	
 	fxls8471@1e {
 		compatible = "fsl,fxls8471";
 		reg = <0x1e>;
 		position = <0>;
 		interrupt-parent = <&gpio5>;
 		interrupts = <0 8>;
-	};
+	};*/
 };
 
 &i2c2 {
@@ -261,6 +346,42 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
+	/* 4.3寸触摸屏 */
+
+	gt9147:gt9147@14 {
+		compatible = "goodix,gt9147", "goodix,gt9xx";
+		reg = <0x14>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_tsc
+					 &pinctrl_tsc_reset>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <9 0>;
+		reset-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
+		interrupt-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+
+
+	mpu6050:mpu6050@68 {
+		compatible = "xxzy,mpu6060";
+		reg = <0x68>;
+	};
+
+/*
+	ft5426:ft5426@38 {
+		compatible = "edt,edt-ft5426";
+		reg = <0x38>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_tsc
+					 &pinctrl_tsc_reset>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <9 0>;
+		reset-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
+		interrupt-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+
+*/
 
 	codec: wm8960@1a {
 		compatible = "wlf,wm8960";
@@ -299,7 +420,71 @@
 			fsl,pins = <
 				MX6UL_PAD_UART1_RTS_B__GPIO1_IO19	0x17059 /* SD1 CD */
 				MX6UL_PAD_GPIO1_IO05__USDHC1_VSELECT	0x17059 /* SD1 VSELECT */
-				MX6UL_PAD_GPIO1_IO09__GPIO1_IO09        0x17059 /* SD1 RESET */
+			/*	MX6UL_PAD_GPIO1_IO09__GPIO1_IO09        0x17059 /* SD1 RESET */
+			>;
+		};
+		pinctrl_gpioled: ledgrp{
+			fsl,pins = < 
+				MX6UL_PAD_GPIO1_IO03__GPIO1_IO03	0x10b0
+			>;
+
+		};
+		/* xxzy beep 要使用6ull的 */
+		pinctrl_beep: beepgrp{
+			fsl,pins = < 
+			/*  MX6UL_PAD_SNVS_TAMPER1__GPIO5_IO01	0x10b0 */
+				MX6ULL_PAD_SNVS_TAMPER1__GPIO5_IO01 0x10b0
+			>;
+		};
+		/* xxzy key */
+		pinctrl_key: keygrp{
+			fsl,pins = < 
+				MX6UL_PAD_UART1_CTS_B__GPIO1_IO18	0XF080
+			>;
+		};
+
+		/* xxzy spi3 icm20608外设 */
+		pinctrl_ecspi3: icm20608grp{
+			fsl,pins = < 
+				MX6UL_PAD_UART2_TX_DATA__GPIO1_IO20		0x10b0 /*软件片选*/
+				MX6UL_PAD_UART2_RX_DATA__ECSPI3_SCLK	0x10b1
+				MX6UL_PAD_UART2_CTS_B__ECSPI3_MOSI		0x10b1
+				MX6UL_PAD_UART2_RTS_B__ECSPI3_MISO		0x10b1
+				
+			>;
+		};
+
+		/* xxzy uart3 串口 */
+		pinctrl_uart3: uart3grp {
+			fsl,pins = <
+				MX6UL_PAD_UART3_TX_DATA__UART3_DCE_TX	0x1b0b1
+				MX6UL_PAD_UART3_RX_DATA__UART3_DCE_RX	0x1b0b1 
+			>;
+		};
+
+			/* xxzy ADC1 CH1  gpio1_io01 */
+		pinctrl_adc1: adc1grp {
+			fsl,pins = <
+				MX6UL_PAD_GPIO1_IO01__GPIO1_IO01	0XB1
+			>;
+		};
+		
+		/*xxzy 触摸屏中断引脚 */
+		pinctrl_tsc: tscgrp {
+			fsl,pins = <
+				 MX6UL_PAD_GPIO1_IO09__GPIO1_IO09 0x79 /* TSC_INT */	
+				/*   MX6UL_PAD_GPIO1_IO09__GPIO1_IO09 0x01  /*失败*/
+				/*    MX6UL_PAD_GPIO1_IO09__GPIO1_IO09 0x41  /*失败*/
+				/*   MX6UL_PAD_GPIO1_IO09__GPIO1_IO09 0x71  /*成功 输出时的驱动能力R0/6可以 。0xc071成功，配置上下电阻不起作用，因为输入配置了禁止上下拉，使用保持器*/
+				/*  MX6UL_PAD_GPIO1_IO09__GPIO1_IO09 0x078  /*成功 。低压摆率也可以*/
+				/* MX6UL_PAD_GPIO1_IO09__GPIO1_IO09 0x69  /*成功 输出时的驱动能力R0/5可以*/
+				/*  MX6UL_PAD_GPIO1_IO09__GPIO1_IO09 0x49  /*成功 输出时的驱动能力R0可以*/
+				/*MX6UL_PAD_GPIO1_IO09__GPIO1_IO09 0x41  /*失败，输出驱动必须打开，配置能力任何r0的值都可以 */
+				/*MX6UL_PAD_GPIO1_IO09__GPIO1_IO09 0x9  /*成功，输出驱动必须打开 io速度没影响，配置能力任何r0的值都可以 */
+				/*MX6UL_PAD_GPIO1_IO09__GPIO1_IO09 0x8  /*成功，输出驱动必须打开 io速度没影响，低压摆率也可以 配置能力任何r0的值都可以 */
+				/* MX6UL_PAD_GPIO1_IO09__GPIO1_IO09 0x1008  /*成功，输出驱动必须打开 io速度没影响，低压摆率也可以  迟滞比较器不影响配置能力任何r0的值都可以 */
+				/*MX6UL_PAD_GPIO1_IO09__GPIO1_IO09 0x3008  /*成功， f008 成功 输出驱动必须打开 io速度没影响，低压摆率也可以  迟滞比较器不影响 上下拉不影响 配置能力任何r0的值都可以 */
+				/* 综上所述，只要开启IO作为输出的驱动能力，就可以使用中断*/
 			>;
 		};
 
@@ -361,8 +546,8 @@
 
 		pinctrl_flexcan2: flexcan2grp{
 			fsl,pins = <
-				MX6UL_PAD_UART2_RTS_B__FLEXCAN2_RX	0x1b020
-				MX6UL_PAD_UART2_CTS_B__FLEXCAN2_TX	0x1b020
+			/*	MX6UL_PAD_UART2_RTS_B__FLEXCAN2_RX	0x1b020
+				MX6UL_PAD_UART2_CTS_B__FLEXCAN2_TX	0x1b020 */
 			>;
 		};
 
@@ -382,39 +567,39 @@
 
 		pinctrl_lcdif_dat: lcdifdatgrp {
 			fsl,pins = <
-				MX6UL_PAD_LCD_DATA00__LCDIF_DATA00  0x79
-				MX6UL_PAD_LCD_DATA01__LCDIF_DATA01  0x79
-				MX6UL_PAD_LCD_DATA02__LCDIF_DATA02  0x79
-				MX6UL_PAD_LCD_DATA03__LCDIF_DATA03  0x79
-				MX6UL_PAD_LCD_DATA04__LCDIF_DATA04  0x79
-				MX6UL_PAD_LCD_DATA05__LCDIF_DATA05  0x79
-				MX6UL_PAD_LCD_DATA06__LCDIF_DATA06  0x79
-				MX6UL_PAD_LCD_DATA07__LCDIF_DATA07  0x79
-				MX6UL_PAD_LCD_DATA08__LCDIF_DATA08  0x79
-				MX6UL_PAD_LCD_DATA09__LCDIF_DATA09  0x79
-				MX6UL_PAD_LCD_DATA10__LCDIF_DATA10  0x79
-				MX6UL_PAD_LCD_DATA11__LCDIF_DATA11  0x79
-				MX6UL_PAD_LCD_DATA12__LCDIF_DATA12  0x79
-				MX6UL_PAD_LCD_DATA13__LCDIF_DATA13  0x79
-				MX6UL_PAD_LCD_DATA14__LCDIF_DATA14  0x79
-				MX6UL_PAD_LCD_DATA15__LCDIF_DATA15  0x79
-				MX6UL_PAD_LCD_DATA16__LCDIF_DATA16  0x79
-				MX6UL_PAD_LCD_DATA17__LCDIF_DATA17  0x79
-				MX6UL_PAD_LCD_DATA18__LCDIF_DATA18  0x79
-				MX6UL_PAD_LCD_DATA19__LCDIF_DATA19  0x79
-				MX6UL_PAD_LCD_DATA20__LCDIF_DATA20  0x79
-				MX6UL_PAD_LCD_DATA21__LCDIF_DATA21  0x79
-				MX6UL_PAD_LCD_DATA22__LCDIF_DATA22  0x79
-				MX6UL_PAD_LCD_DATA23__LCDIF_DATA23  0x79
+				MX6UL_PAD_LCD_DATA00__LCDIF_DATA00  0x49
+				MX6UL_PAD_LCD_DATA01__LCDIF_DATA01  0x49
+				MX6UL_PAD_LCD_DATA02__LCDIF_DATA02  0x49
+				MX6UL_PAD_LCD_DATA03__LCDIF_DATA03  0x49
+				MX6UL_PAD_LCD_DATA04__LCDIF_DATA04  0x49
+				MX6UL_PAD_LCD_DATA05__LCDIF_DATA05  0x49
+				MX6UL_PAD_LCD_DATA06__LCDIF_DATA06  0x49
+				MX6UL_PAD_LCD_DATA07__LCDIF_DATA07  0x49
+				MX6UL_PAD_LCD_DATA08__LCDIF_DATA08  0x49
+				MX6UL_PAD_LCD_DATA09__LCDIF_DATA09  0x49
+				MX6UL_PAD_LCD_DATA10__LCDIF_DATA10  0x49
+				MX6UL_PAD_LCD_DATA11__LCDIF_DATA11  0x49
+				MX6UL_PAD_LCD_DATA12__LCDIF_DATA12  0x49
+				MX6UL_PAD_LCD_DATA13__LCDIF_DATA13  0x49
+				MX6UL_PAD_LCD_DATA14__LCDIF_DATA14  0x49
+				MX6UL_PAD_LCD_DATA15__LCDIF_DATA15  0x49
+				MX6UL_PAD_LCD_DATA16__LCDIF_DATA16  0x49
+				MX6UL_PAD_LCD_DATA17__LCDIF_DATA17  0x49
+				MX6UL_PAD_LCD_DATA18__LCDIF_DATA18  0x49
+				MX6UL_PAD_LCD_DATA19__LCDIF_DATA19  0x49
+				MX6UL_PAD_LCD_DATA20__LCDIF_DATA20  0x49
+				MX6UL_PAD_LCD_DATA21__LCDIF_DATA21  0x49
+				MX6UL_PAD_LCD_DATA22__LCDIF_DATA22  0x49
+				MX6UL_PAD_LCD_DATA23__LCDIF_DATA23  0x49
 			>;
 		};
 
 		pinctrl_lcdif_ctrl: lcdifctrlgrp {
 			fsl,pins = <
-				MX6UL_PAD_LCD_CLK__LCDIF_CLK	    0x79
-				MX6UL_PAD_LCD_ENABLE__LCDIF_ENABLE  0x79
-				MX6UL_PAD_LCD_HSYNC__LCDIF_HSYNC    0x79
-				MX6UL_PAD_LCD_VSYNC__LCDIF_VSYNC    0x79
+				MX6UL_PAD_LCD_CLK__LCDIF_CLK	    0x49
+				MX6UL_PAD_LCD_ENABLE__LCDIF_ENABLE  0x49
+				MX6UL_PAD_LCD_HSYNC__LCDIF_HSYNC    0x49
+				MX6UL_PAD_LCD_VSYNC__LCDIF_VSYNC    0x49
 			>;
 		};
 
@@ -423,6 +608,11 @@
 				MX6UL_PAD_GPIO1_IO08__PWM1_OUT   0x110b0
 			>;
 		};
+		pinctrl_pwm3: pwm3grp {
+			fsl,pins = <
+				MX6UL_PAD_GPIO1_IO04__PWM3_OUT   0x110b0
+			>;
+		};		
 
 		pinctrl_qspi: qspigrp {
 			fsl,pins = <
@@ -445,15 +635,16 @@
 			>;
 		};
 
+		/*
 		pinctrl_tsc: tscgrp {
 			fsl,pins = <
 				MX6UL_PAD_GPIO1_IO01__GPIO1_IO01	0xb0
 				MX6UL_PAD_GPIO1_IO02__GPIO1_IO02	0xb0
-				MX6UL_PAD_GPIO1_IO03__GPIO1_IO03	0xb0
+				MX6UL_PAD_GPIO1_IO03__GPIO1_IO03	0xb0	
 				MX6UL_PAD_GPIO1_IO04__GPIO1_IO04	0xb0
 			>;
 		};
-
+		*/
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX6UL_PAD_UART1_TX_DATA__UART1_DCE_TX 0x1b0b1
@@ -463,19 +654,11 @@
 
 		pinctrl_uart2: uart2grp {
 			fsl,pins = <
-				MX6UL_PAD_UART2_TX_DATA__UART2_DCE_TX	0x1b0b1
-				MX6UL_PAD_UART2_RX_DATA__UART2_DCE_RX	0x1b0b1
-				MX6UL_PAD_UART3_RX_DATA__UART2_DCE_RTS	0x1b0b1
-				MX6UL_PAD_UART3_TX_DATA__UART2_DCE_CTS	0x1b0b1
 			>;
 		};
 
 		pinctrl_uart2dte: uart2dtegrp {
 			fsl,pins = <
-				MX6UL_PAD_UART2_TX_DATA__UART2_DTE_RX	0x1b0b1
-				MX6UL_PAD_UART2_RX_DATA__UART2_DTE_TX	0x1b0b1
-				MX6UL_PAD_UART3_RX_DATA__UART2_DTE_CTS	0x1b0b1
-				MX6UL_PAD_UART3_TX_DATA__UART2_DTE_RTS	0x1b0b1
 			>;
 		};
 
@@ -595,7 +778,7 @@
 		pinctrl_lcdif_reset: lcdifresetgrp {
                         fsl,pins = <
                                 /* used for lcd reset */
-                                MX6ULL_PAD_SNVS_TAMPER9__GPIO5_IO09  0x79
+                             /*   MX6ULL_PAD_SNVS_TAMPER9__GPIO5_IO09  0x79 */
                         >;
                 };
 
@@ -611,11 +794,17 @@
                         >;
                 };
 
-                pinctrl_sai2_hp_det_b: sai2_hp_det_grp {
-                        fsl,pins = <
-                                MX6ULL_PAD_SNVS_TAMPER4__GPIO5_IO04   0x17059
-                        >;
-                };
+		pinctrl_sai2_hp_det_b: sai2_hp_det_grp {
+				fsl,pins = <
+						MX6ULL_PAD_SNVS_TAMPER4__GPIO5_IO04   0x17059
+				>;
+		};
+		pinctrl_tsc_reset: tsc_reset {
+				fsl,pins = <
+						MX6ULL_PAD_SNVS_TAMPER9__GPIO5_IO09 0x10B0
+				>;
+		};
+
         };
 };
 
@@ -623,27 +812,27 @@
 &lcdif {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lcdif_dat
-		     &pinctrl_lcdif_ctrl
-		     &pinctrl_lcdif_reset>;
+		     &pinctrl_lcdif_ctrl>;
+		   /*  &pinctrl_lcdif_reset*/
 	display = <&display0>;
 	status = "okay";
 
 	display0: display {
-		bits-per-pixel = <16>;
+		bits-per-pixel = <24>;
 		bus-width = <24>;
 
 		display-timings {
 			native-mode = <&timing0>;
 			timing0: timing0 {
-			clock-frequency = <9200000>;
-			hactive = <480>;
-			vactive = <272>;
-			hfront-porch = <8>;
-			hback-porch = <4>;
-			hsync-len = <41>;
-			vback-porch = <2>;
-			vfront-porch = <4>;
-			vsync-len = <10>;
+			clock-frequency = <31000000>;
+			hactive = <800>;
+			vactive = <480>;
+			hfront-porch = <40>;
+			hback-porch = <88>;
+			hsync-len = <48>;
+			vback-porch = <32>;
+			vfront-porch = <13>;
+			vsync-len = <3>;
 
 			hsync-active = <0>;
 			vsync-active = <0>;
@@ -659,6 +848,15 @@
 	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";
 };
+
+&pwm3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm3>; /*pinctrl-0 属性指定 PWM3 所使用的输出引脚对应的 pinctrl 节点*/
+	clocks = <&clks IMX6UL_CLK_PWM3>, /*设置时钟，第 1 行设置 ipg 时钟，第 2 行设置 per 时钟*/
+			 <&clks IMX6UL_CLK_PWM3>;
+	status = "okay";
+};
+
 
 &pxp {
 	status = "okay";
@@ -693,14 +891,15 @@
 	status = "okay";
 };
 
+/* 官方电阻触摸屏
 &tsc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_tsc>;
-	xnur-gpio = <&gpio1 3 GPIO_ACTIVE_LOW>;
+	xnur-gpio = <&gpio1 3 GPIO_ACTIVE_LOW>; 
 	measure-delay-time = <0xffff>;
 	pre-charge-time = <0xfff>;
 	status = "okay";
-};
+};*/
 
 &uart1 {
 	pinctrl-names = "default";
@@ -717,6 +916,13 @@
 	/* pinctrl-0 = <&pinctrl_uart2dte>; */
 	status = "okay";
 };
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+	status = "okay";
+};
+
 
 &usbotg1 {
 	dr_mode = "otg";
@@ -775,4 +981,27 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_wdog>;
 	fsl,wdog_b;
+};
+
+&ecspi3 {
+	fsl,spi-num-chipselects = <1>;			/* 1个片选*/
+	cs-gpios = <&gpio1 20 GPIO_ACTIVE_LOW>; /*片选引脚 软件片选*/
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi3>;
+	status = "okay";
+
+	/* 对应的spi芯片子节点 */
+	spidev0: icm20608@0 {				/* @ 后面的 0 表示这个SPI 芯片接到 哪一个硬件片选上 */
+		reg = <0>;						/* 表示片选信号 */
+		compatible = "xxzy,icm20608";
+		spi-max-frequency = <8000000>;		/* SPI时钟频率 8MHz*/
+	};
+};
+/* xxzy ADC1 CH1 */
+&adc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc1>;
+	num-channels = <2>;
+	verf-supply = <&reg_vref_adc>;
+	status = "okay";	
 };
